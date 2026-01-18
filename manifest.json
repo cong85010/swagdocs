@@ -1,0 +1,54 @@
+{
+    "manifest_version": 3,
+    "name": "SwagDocs - OpenAPI to Markdown Converter",
+    "version": "1.0.0",
+    "description": "Convert Swagger/OpenAPI endpoints into high-quality Markdown documentation",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "src/content/content.js",
+                "src/content/content-enhanced.js"
+            ],
+            "css": [
+                "src/content/content.css"
+            ],
+            "run_at": "document_idle",
+            "all_frames": false
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "icons/icon16.png"
+        }
+    },
+    "icons": {
+        "16": "icons/icon16.png"
+    },
+    "background": {
+        "service_worker": "src/background/background.js",
+        "type": "module"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "popup.html",
+                "src/content/content.css"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
