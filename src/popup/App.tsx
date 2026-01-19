@@ -301,7 +301,7 @@ const App = () => {
                 </div>
               ) : (
                 <div>
-                  {filteredEndpoints.map((endpoint, index) => {
+                  {filteredEndpoints.map((endpoint) => {
                     const key = `${endpoint.method}:${endpoint.path}`;
                     const isSelected = selectedEndpoints.has(key);
                     return (
@@ -309,8 +309,8 @@ const App = () => {
                         key={key}
                         onClick={() => handleToggleEndpoint(endpoint)}
                         className={cn(
-                          'px-4 py-3 cursor-pointer transition-colors hover:bg-dark-surface border-t border-dark-border',
-                          isSelected && 'bg-dark-surface border-l-4 border-neon-cyan'
+                          'px-4 py-3 cursor-pointer transition-all duration-200 hover:bg-dark-surface border-t border-dark-border border-l-4',
+                          isSelected ? 'bg-dark-surface border-l-neon-cyan' : 'border-l-transparent'
                         )}
                       >
                         <div className="flex items-start gap-3">
