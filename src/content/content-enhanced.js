@@ -1,4 +1,4 @@
-(function() {
+(function () {
   'use strict';
 
   const STORAGE_KEY = 'swagdocs_selections';
@@ -34,7 +34,7 @@
     // Event listeners
     document.getElementById('swagdocs-generate').addEventListener('click', () => {
       // Open popup by clicking the extension icon programmatically
-      chrome.runtime.sendMessage({ 
+      chrome.runtime.sendMessage({
         type: 'GENERATE_DOCS',
         selections: Array.from(selectedEndpoints)
       });
@@ -87,17 +87,17 @@
   const clearAllSelections = () => {
     selectedEndpoints.clear();
     saveSelections();
-    
+
     // Update all checkboxes
     document.querySelectorAll('.swagdocs-checkbox').forEach(checkbox => {
       checkbox.checked = false;
     });
-    
+
     // Remove selected styling from all operations
     document.querySelectorAll('.swagdocs-operation').forEach(element => {
       element.classList.remove('swagdocs-selected');
     });
-    
+
     updateToolbar();
   };
 
@@ -112,7 +112,7 @@
       checkbox.checked = true;
       operationElement.classList.add('swagdocs-selected');
     }
-    
+
     saveSelections();
     updateToolbar();
   };
@@ -121,43 +121,61 @@
   const addCheckboxes = () => {
     // Find all operation blocks (Swagger UI structure)
     const operations = document.querySelectorAll('.opblock:not(.swagdocs-operation)');
-    
+
     operations.forEach(operation => {
       // Mark as processed
       operation.classList.add('swagdocs-operation');
-      
+
       // Extract endpoint info
       const pathElement = operation.querySelector('.opblock-summary-path');
       const methodElement = operation.querySelector('.opblock-summary-method');
-      
+
       if (!pathElement || !methodElement) return;
-      
+
       const path = pathElement.textContent.trim();
       const method = methodElement.textContent.trim().toUpperCase();
       const key = `${method}:${path}`;
-      
+
       // Create checkbox
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.className = 'swagdocs-checkbox';
       checkbox.checked = selectedEndpoints.has(key);
-      
+
       // Add to operation summary
       const summary = operation.querySelector('.opblock-summary');
       if (summary) {
         summary.style.position = 'relative';
         summary.insertBefore(checkbox, summary.firstChild);
-        
+
         // If already selected, apply styling
         if (checkbox.checked) {
           operation.classList.add('swagdocs-selected');
         }
-        
+
         // Add click handler
         checkbox.addEventListener('click', (e) => {
           e.stopPropagation();
           toggleEndpoint(key, checkbox, operation);
         });
+      }
+    });
+
+    // Also re-verify state of existing checkboxes
+    document.querySelectorAll('.swagdocs-checkbox').forEach(checkbox => {
+      const op = checkbox.closest('.swagdocs-operation');
+      if (op) {
+        const pathElement = op.querySelector('.opblock-summary-path');
+        const methodElement = op.querySelector('.opblock-summary-method');
+        if (pathElement && methodElement) {
+          const key = `${methodElement.textContent.trim().toUpperCase()}:${pathElement.textContent.trim()}`;
+          const shouldBeChecked = selectedEndpoints.has(key);
+          if (checkbox.checked !== shouldBeChecked) {
+            checkbox.checked = shouldBeChecked;
+            if (shouldBeChecked) op.classList.add('swagdocs-selected');
+            else op.classList.remove('swagdocs-selected');
+          }
+        }
       }
     });
   };
@@ -166,24 +184,25 @@
   const observeDOM = () => {
     const observer = new MutationObserver((mutations) => {
       let shouldUpdate = false;
-      
+
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
-          if (node.nodeType === 1 && 
-              (node.classList?.contains('opblock') || 
-               node.querySelector?.('.opblock'))) {
+          if (node.nodeType === 1 &&
+            (node.classList?.contains('opblock') ||
+              node.querySelector?.('.opblock'))) {
             shouldUpdate = true;
           }
         });
       });
-      
+
       if (shouldUpdate) {
         addCheckboxes();
       }
     });
-    
-    const container = document.querySelector('.swagger-ui') || document.body;
-    observer.observe(container, {
+
+
+    // Observe body for max coverage as Swagger UI can be anywhere
+    observer.observe(document.body, {
       childList: true,
       subtree: true
     });
@@ -192,27 +211,27 @@
   // Initialize
   const init = async () => {
     // Check if this is a Swagger UI page
-    const isSwaggerPage = document.querySelector('.swagger-ui') || 
-                          document.querySelector('[id*="swagger"]') ||
-                          window.ui;
-    
+    const isSwaggerPage = document.querySelector('.swagger-ui') ||
+      document.querySelector('[id*="swagger"]') ||
+      window.ui;
+
     if (!isSwaggerPage) return;
-    
+
     // Load saved selections
     await loadSelections();
-    
+
     // Inject CSS
     injectCSS();
-    
+
     // Create toolbar
     createToolbar();
-    
+
     // Add checkboxes to existing operations
     setTimeout(() => {
       addCheckboxes();
       updateToolbar();
     }, 1000);
-    
+
     // Observe for new operations
     observeDOM();
   };
@@ -231,7 +250,7 @@
         selections: Array.from(selectedEndpoints)
       });
     }
-    
+
     if (message.type === 'CLEAR_SELECTIONS') {
       clearAllSelections();
       sendResponse({ success: true });

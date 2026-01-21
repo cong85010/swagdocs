@@ -11,11 +11,20 @@
   accent-color: #00ffff;
 }
 
-.swagdocs-operation {
+/* Target opblock when it contains our checkbox */
+.opblock:has(.swagdocs-checkbox) {
   position: relative;
-  padding-left: 40px !important;
+  /* Use padding-top to push content down if needed, or ensure left padding 
+     The issue might be that opblock-summary needs the padding, not opblock */
 }
 
+/* Selected state */
+.opblock:has(.swagdocs-checkbox:checked) {
+  border-left: 4px solid #00ffff !important;
+  background-color: rgba(0, 255, 255, 0.05) !important;
+}
+
+/* Legacy support / fallback */
 .swagdocs-selected {
   border-left: 4px solid #00ffff !important;
   background-color: rgba(0, 255, 255, 0.05) !important;

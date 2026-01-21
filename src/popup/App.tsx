@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, CheckSquare, Square, Copy, Loader2, AlertCircle } from 'lucide-react';
+import { Search, CheckSquare, Square, Copy, Loader2, AlertCircle, Settings, MessageSquare, Option } from 'lucide-react';
 import { extractEndpoints, generateMarkdown, Endpoint } from '../utils/markdownGenerator';
 import type { OpenApiSpec } from '../utils/markdownGenerator';
 import { cn } from '../utils/cn';
+import { DEFAULT_SYSTEM_PROMPT } from '../utils/constants';
 
 const App = () => {
   const [loading, setLoading] = useState(true);
@@ -12,23 +13,42 @@ const App = () => {
   const [selectedEndpoints, setSelectedEndpoints] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [markdown, setMarkdown] = useState('');
-  const [activeTab, setActiveTab] = useState<'select' | 'preview'>('select');
+  const [activeTab, setActiveTab] = useState<'select' | 'preview' | 'settings'>('select');
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
 
   useEffect(() => {
     loadOpenApiSpec();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const result = await chrome.storage.local.get(['systemPrompt']);
+      if (result.systemPrompt) setSystemPrompt(result.systemPrompt);
+    } catch (e) {
+      console.warn('Failed to load settings', e);
+    }
+  };
+
+  const saveSettings = async (prompt: string) => {
+    try {
+      await chrome.storage.local.set({ systemPrompt: prompt });
+    } catch (e) {
+      console.warn('Failed to save settings', e);
+    }
+  };
 
   useEffect(() => {
     if (selectedEndpoints.size > 0 && spec) {
-      const selected = endpoints.filter(ep => 
+      const selected = endpoints.filter(ep =>
         selectedEndpoints.has(`${ep.method}:${ep.path}`)
       );
-      const generated = generateMarkdown(spec, selected);
+      const generated = generateMarkdown(spec, selected, systemPrompt);
       setMarkdown(generated);
     } else {
       setMarkdown('');
     }
-  }, [selectedEndpoints, endpoints, spec]);
+  }, [selectedEndpoints, endpoints, spec, systemPrompt]);
 
   const loadOpenApiSpec = async () => {
     try {
@@ -134,13 +154,13 @@ const App = () => {
       setSpec(specData);
       const extracted = extractEndpoints(specData);
       setEndpoints(extracted);
-      
+
       // Apply pre-selected endpoints
       if (preselectedKeys.length > 0) {
         setSelectedEndpoints(new Set(preselectedKeys));
         setActiveTab('preview');
       }
-      
+
       if (extracted.length === 0) {
         setError('No endpoints found in the OpenAPI specification');
       }
@@ -231,23 +251,33 @@ const App = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('select')}
-              className={`px-3 py-1 rounded text-sm transition-colors ${
-                activeTab === 'select'
-                  ? 'bg-neon-cyan text-dark-bg'
-                  : 'bg-dark-border hover:bg-dark-border/80 text-dark-text'
-              }`}
+              className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1.5  ${activeTab === 'select'
+                ? 'bg-neon-cyan text-dark-bg'
+                : 'bg-dark-border hover:bg-dark-border/80 text-dark-text'
+                }`}
             >
+              <CheckSquare className="w-3.5 h-3.5" />
               Select
             </button>
             <button
               onClick={() => setActiveTab('preview')}
-              className={`px-3 py-1 rounded text-sm transition-colors ${
-                activeTab === 'preview'
-                  ? 'bg-neon-cyan text-dark-bg'
-                  : 'bg-dark-border hover:bg-dark-border/80 text-dark-text'
-              }`}
+              className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1.5 ${activeTab === 'preview'
+                ? 'bg-neon-cyan text-dark-bg'
+                : 'bg-dark-border hover:bg-dark-border/80 text-dark-text'
+                }`}
             >
+              <MessageSquare className="w-3.5 h-3.5" />
               Preview
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-3 py-1 rounded text-sm transition-colors flex items-center gap-1.5 ${activeTab === 'settings'
+                ? 'bg-neon-cyan text-dark-bg'
+                : 'bg-dark-border hover:bg-dark-border/80 text-dark-text'
+                }`}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Settings
             </button>
           </div>
         </div>
@@ -322,17 +352,16 @@ const App = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <span
-                                className={`px-2 py-0.5 text-xs font-semibold rounded ${
-                                  endpoint.method === 'GET'
-                                    ? 'bg-neon-green text-dark-bg'
-                                    : endpoint.method === 'POST'
+                                className={`px-2 py-0.5 text-xs font-semibold rounded ${endpoint.method === 'GET'
+                                  ? 'bg-neon-green text-dark-bg'
+                                  : endpoint.method === 'POST'
                                     ? 'bg-neon-blue text-dark-bg'
                                     : endpoint.method === 'PUT' || endpoint.method === 'PATCH'
-                                    ? 'bg-neon-purple text-dark-bg'
-                                    : endpoint.method === 'DELETE'
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-dark-border text-dark-text'
-                                }`}
+                                      ? 'bg-neon-purple text-dark-bg'
+                                      : endpoint.method === 'DELETE'
+                                        ? 'bg-neon-red text-dark-bg'
+                                        : 'bg-dark-border text-dark-text'
+                                  }`}
                               >
                                 {endpoint.method}
                               </span>
@@ -354,7 +383,7 @@ const App = () => {
               )}
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'preview' ? (
           <div className="h-full flex flex-col">
             {/* Preview Header */}
             <div className="border-b border-dark-border px-4 py-2 bg-dark-surface flex items-center justify-between">
@@ -384,6 +413,35 @@ const App = () => {
                   Select endpoints to generate Markdown documentation
                 </div>
               )}
+            </div>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col p-4 overflow-y-auto">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-neon-cyan mb-2">
+                  System Prompt
+                </label>
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => {
+                    setSystemPrompt(e.target.value);
+                    saveSettings(e.target.value);
+                  }}
+                  rows={16}
+                  className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md text-dark-text font-mono text-sm focus:outline-none focus:ring-1 focus:ring-neon-cyan resize-none"
+                  placeholder="Enter custom instructions for the AI..."
+                />
+              </div>
+
+              <div className="p-4 bg-dark-surface rounded-lg border border-dark-border">
+                <h3 className="text-sm font-medium text-dark-text mb-2">Pro Tip</h3>
+                <p className="text-xs text-dark-muted leading-relaxed">
+                  The system prompt is prepended to the generated documentation.
+                  It's a great place to define coding standards, preferred libraries,
+                  or the overall context for the AI.
+                </p>
+              </div>
             </div>
           </div>
         )}
