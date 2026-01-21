@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, CheckSquare, Square, Copy, Loader2, AlertCircle, Settings, MessageSquare, Option } from 'lucide-react';
+import { Search, CheckSquare, Square, Copy, Loader2, AlertCircle, Settings, MessageSquare, Download } from 'lucide-react';
 import { extractEndpoints, generateMarkdown, Endpoint } from '../utils/markdownGenerator';
 import type { OpenApiSpec } from '../utils/markdownGenerator';
 import { cn } from '../utils/cn';
@@ -191,6 +191,19 @@ const App = () => {
       const allKeys = new Set(filteredEndpoints.map(ep => `${ep.method}:${ep.path}`));
       setSelectedEndpoints(allKeys);
     }
+  };
+
+  const handleDownload = () => {
+    if (!markdown) return;
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'api-docs.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleCopyToClipboard = async () => {
@@ -391,6 +404,14 @@ const App = () => {
                 {selectedEndpoints.size} endpoint{selectedEndpoints.size !== 1 ? 's' : ''} selected
               </span>
               <div className="flex gap-2">
+                <button
+                  onClick={handleDownload}
+                  disabled={!markdown}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-dark-bg border border-dark-border text-dark-text rounded text-sm hover:border-neon-cyan transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4" />
+                  Download
+                </button>
                 <button
                   onClick={handleCopyToClipboard}
                   disabled={!markdown}
