@@ -33,11 +33,24 @@
 
     // Event listeners
     document.getElementById('swagdocs-generate').addEventListener('click', () => {
-      // Open popup by clicking the extension icon programmatically
-      chrome.runtime.sendMessage({
-        type: 'GENERATE_DOCS',
-        selections: Array.from(selectedEndpoints)
-      });
+      try {
+        // Open popup by clicking the extension icon programmatically
+        chrome.runtime.sendMessage({
+          type: 'GENERATE_DOCS',
+          selections: Array.from(selectedEndpoints)
+        }).catch(err => {
+             // Catch both 'Failed to open popup' and 'Browser window has no toolbar'
+             if (err.message && (err.message.includes('Failed to open popup') || err.message.includes('toolbar'))) {
+                 alert('Could not open the SwagDocs popup. Please click the extension icon manually.');
+             }
+        });
+      } catch (error) {
+        if (error.message.includes('Extension context invalidated')) {
+          alert('Extension updated. Please refresh the page.');
+        } else {
+          console.error(error);
+        }
+      }
     });
 
     document.getElementById('swagdocs-clear').addEventListener('click', clearAllSelections);

@@ -117,19 +117,38 @@ const toTypeScriptType = (schema: any, definitions?: Record<string, any>, depth 
   return 'any';
 };
 
-const generateRequestExample = (operation: OpenApiOperation): string => {
+const generateRequestExample = (operation: OpenApiOperation, definitions?: Record<string, any>): string => {
   const body = operation.requestBody;
   if (!body || !body.content) return '';
 
-  const jsonContent = body.content['application/json'] || body.content['application/xml'];
-  if (!jsonContent) return '';
-
-  if (jsonContent.example) {
-    return JSON.stringify(jsonContent.example, null, 2);
+  // Find a suitable content type
+  // Find a suitable content type
+  const contentTypes = Object.keys(body.content);
+  
+  // 1. Try JSON variants
+  let contentType = contentTypes.find(ct => ct.toLowerCase().includes('json'));
+  
+  // 2. Try XML variants
+  if (!contentType) {
+    contentType = contentTypes.find(ct => ct.toLowerCase().includes('xml'));
+  }
+  
+  // 3. Fallback to first available
+  if (!contentType && contentTypes.length > 0) {
+    contentType = contentTypes[0];
   }
 
-  if (jsonContent.schema) {
-    return generateExampleFromSchema(jsonContent.schema);
+  if (!contentType) return '';
+
+  const content = body.content[contentType];
+  if (!content) return '';
+
+  if (content.example) {
+    return JSON.stringify(content.example, null, 2);
+  }
+
+  if (content.schema) {
+    return generateExampleFromSchema(content.schema, definitions);
   }
 
   return '';
@@ -230,8 +249,15 @@ const generateResponseInterface = (
   const successResponse = responses['200'] || responses['201'] || responses['204'];
   if (!successResponse || !successResponse.content) return '';
 
-  const jsonContent = successResponse.content['application/json'] ||
-    successResponse.content['application/xml'];
+  // Find a suitable content type
+  const contentTypes = Object.keys(successResponse.content);
+  let contentType = contentTypes.find(ct => ct.toLowerCase().includes('json'));
+  if (!contentType) contentType = contentTypes.find(ct => ct.toLowerCase().includes('xml'));
+  if (!contentType && contentTypes.length > 0) contentType = contentTypes[0];
+
+  if (!contentType) return '';
+
+  const jsonContent = successResponse.content[contentType];
   if (!jsonContent || !jsonContent.schema) return '';
 
   const typeName = generateTypeName(path, method);
@@ -352,7 +378,7 @@ export const generateMarkdown = (
     let requestExample = '';
 
     if (operation.requestBody) {
-      requestExample = generateRequestExample(operation);
+      requestExample = generateRequestExample(operation, definitions);
     } else if (bodyParam && bodyParam.schema) {
       // Swagger 2.0 body parameter
       requestExample = generateExampleFromSchema(bodyParam.schema, definitions);
