@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, CheckSquare, Square, Copy, Loader2, AlertCircle, Settings, MessageSquare, Download } from 'lucide-react';
 import { extractEndpoints, generateMarkdown, Endpoint } from '../utils/markdownGenerator';
 import type { OpenApiSpec } from '../utils/markdownGenerator';
@@ -58,6 +58,18 @@ const App = () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab.id) {
         throw new Error('No active tab found');
+      }
+
+      // Ensure content scripts are injected in this tab
+      try {
+        await chrome.runtime.sendMessage({
+          type: 'ENSURE_CONTENT_SCRIPTS',
+          tabId: tab.id,
+        });
+        // Small delay to let content scripts initialize
+        await new Promise(r => setTimeout(r, 100));
+      } catch (e) {
+        // Non-fatal — content scripts may not be needed if we can fetch directly
       }
 
       // Check if there are pre-selected endpoints from page
@@ -215,7 +227,7 @@ const App = () => {
     }
   };
 
-  const filteredEndpoints = endpoints.filter(ep => {
+  const filteredEndpoints = useMemo(() => endpoints.filter(ep => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -224,7 +236,7 @@ const App = () => {
       ep.operation.summary?.toLowerCase().includes(query) ||
       ep.operation.operationId?.toLowerCase().includes(query)
     );
-  });
+  }), [endpoints, searchQuery]);
 
   if (loading) {
     return (

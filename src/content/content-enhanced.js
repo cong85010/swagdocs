@@ -195,27 +195,34 @@
 
   // Observe DOM changes to add checkboxes to dynamically loaded operations
   const observeDOM = () => {
+    let debounceTimer = null;
+
     const observer = new MutationObserver((mutations) => {
       let shouldUpdate = false;
 
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
           if (node.nodeType === 1 &&
             (node.classList?.contains('opblock') ||
               node.querySelector?.('.opblock'))) {
             shouldUpdate = true;
+            break;
           }
-        });
-      });
+        }
+        if (shouldUpdate) break;
+      }
 
       if (shouldUpdate) {
-        addCheckboxes();
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          addCheckboxes();
+        }, 150);
       }
     });
 
-
-    // Observe body for max coverage as Swagger UI can be anywhere
-    observer.observe(document.body, {
+    // Observe the Swagger UI container if possible, otherwise fall back to body
+    const swaggerRoot = document.querySelector('.swagger-ui') || document.body;
+    observer.observe(swaggerRoot, {
       childList: true,
       subtree: true
     });
@@ -239,11 +246,18 @@
     // Create toolbar
     createToolbar();
 
-    // Add checkboxes to existing operations
-    setTimeout(() => {
-      addCheckboxes();
-      updateToolbar();
-    }, 1000);
+    // Add checkboxes to existing operations once Swagger UI has rendered
+    const tryAddCheckboxes = () => {
+      const ops = document.querySelectorAll('.opblock');
+      if (ops.length > 0) {
+        addCheckboxes();
+        updateToolbar();
+      } else {
+        // Swagger UI hasn't rendered operations yet — retry briefly
+        setTimeout(tryAddCheckboxes, 200);
+      }
+    };
+    tryAddCheckboxes();
 
     // Observe for new operations
     observeDOM();
